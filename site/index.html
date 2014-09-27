@@ -1,0 +1,143 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>Sensing test</title>
+		<meta charset="UTF-8">
+		<script type="text/javascript" src="js/jquery-2.1.1.min.js"></script>
+		<script src="js/three.min.js" type="text/javascript"></script>
+		<script src="js/main_test.js"></script>
+		<script type="text/javascript">
+			var canonicalZ = new THREE.Vector3(0,0,1);
+			var canonicalX = new THREE.Vector3(1,0,0);
+			var auxVector = new THREE.Vector3(0,0,0);
+			var currentRotX = 0;
+			var currentRotZ = 0;
+			var socket;
+			
+			var rotX;
+			var rotY;
+			var rotZ;
+			var accelX;
+			var accelY;
+			var accelZ;
+			$(function() {
+				rotX = $("#rot-x");
+				rotY = $("#rot-y");
+				rotZ = $("#rot-z");
+				accelX = $("#accel-x");
+				accelY = $("#accel-y");
+				accelZ = $("#accel-z");
+			});
+			function connect() {
+				if(!("WebSocket" in window)) {
+					alert("Websockets not supported, Sorry!");
+					return;
+				}
+				if(socket != null) {
+					socket.close();
+					return;
+				}
+				host = document.forms["connect-form"].host.value;
+				port = document.forms["connect-form"].port.value;
+				socket = new WebSocket("ws://"+host + ":" + port);
+				log("Establishing connection to "+socket.url);
+				socket.onopen = function() {
+					log("Connected to "+socket.url);
+					logState("Connected");
+					$("#buttonConnect").val("Disconnect");
+				}
+				socket.onmessage = function(evt) {
+					var values = evt.data.split("\t");
+					var x = values[0];
+					var y = values[1];
+					var z = values[2];
+					accelX.html(x);
+					accelY.html(y);
+					accelZ.html(z);
+					
+					auxVector.set(x,y,z);
+					var angleX = Math.atan2(auxVector.y, auxVector.z);
+					currentRotX = currentRotX + (angleX - currentRotX)/2;
+					
+					var angleZ = Math.atan2(auxVector.x, auxVector.y);
+					currentRotZ = currentRotZ + (angleZ - currentRotZ)/2;
+					//currentRotY = currentRotY + (-auxVector.angleTo(canonicalX) - currentRotY)/5;
+					box.rotation.x = 0;
+					box.rotation.y = 0;
+					box.rotation.z = 0;
+					box.rotateX(currentRotX-Math.PI/2);
+					box.rotateZ(currentRotZ/*-Math.PI/2*/);
+					
+					rotX.html(box.rotation.x);
+					rotY.html(box.rotation.y);
+					rotZ.html(box.rotation.z);
+				}
+				socket.onerror = function() {	
+					logState("Error")
+				}
+				socket.onclose = function() {
+					logState("Disconnected");
+					$("#buttonConnect").val("Connect");
+					log("Disconnected from "+socket.url);
+					socket = null;
+				}
+			}
+			
+			window.onload = function() {
+				logState("Disconnected");
+			}
+			
+			function logState(status) {
+				$("#connection-status").html(status);
+			}
+			
+			function log(text) {
+				var now = new Date();
+				$("#log").append("<p>"+text+"</p>")
+			}
+			
+		</script>
+		<style type="text/css">
+			#leftColumn {
+				float:left;
+				width:700px;
+			}
+			#rightColumn {
+				border:1px solid black;
+				position:relative;
+				float:left;
+				width:500px;
+				box-sizing: border-box;
+			}
+			#log {
+				width:100%;
+				height:400px;
+				background-color:#EEE;
+				box-sizing: border-box;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="leftColumn">
+			<form id="connect-form">
+				<input name="host" type="text" value="192.168.173.218" placeholder="server IP" />
+				<input name="port" type="number" value="9998" placeholder="port" />
+				<input id="buttonConnect" type="button" onclick="connect()" value="Connect" />
+			</form>
+			Status:<span id="connection-status"></span><br>
+			X:<span id="accel-x"></span><br>
+			Y:<span id="accel-y"></span><br>
+			Z:<span id="accel-z"></span><br>
+			RotX:<span id="rot-x"></span><br>
+			RotY:<span id="rot-y"></span><br>
+			RotZ:<span id="rot-z"></span><br>
+			<div id="container" style="display:inline;"></div>
+			<div id="info"></div>
+		</div>
+		<div id="rightColumn">
+			<span>log</span>
+			<div id="log" ></div>
+		</div>
+	</body>
+</html>
+
